@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+    <style>
+        .centre {            
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border: 5px solid;
+            padding: 50px;
+            transform: translate(-50%, -50%);
+        }
+        img {             
+            width: 30%;
+        }
+
+    </style>
+    <head>
+        <meta charset="UTF-8">
+        <title>Containers for Deployment and Scaling Pre-Course Assignment</title>
+    </head>
+    <body>
+        <div class = "centre">
+            <img src ="{{img}}" />
+
+            <b>{{ quote }}</b> 
+            
+            <br /><br />
+            
+            <p>Repository: <a href = {{ repo }}>{{ repo }}</a></p>
+        </div>
+
+    </body>
+</html>
