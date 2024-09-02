@@ -34,4 +34,4 @@ def get_random_image() -> str:
     return  url_for('static', filename=f"/images/{selected}")  
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=10000, debug=False)

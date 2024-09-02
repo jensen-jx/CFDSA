@@ -2,7 +2,7 @@ version: "3"
 
 services:
   pre-course-assignment:
-    image: pre-course-assignment
+    image: jensenjx/pre-course-assignment:v1.0
     build: .
     ports: 
       - 10000:10000
