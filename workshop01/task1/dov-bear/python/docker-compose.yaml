@@ -2,7 +2,7 @@ version: "3"
 
 services:
   pre-course-assignment:
-    image: jensenjx/task1/dov-bear:v1.0
+    image: jensenjx/workshop01-task1-dov-bear:v1.0
     build: .
     ports: 
       - 3000:3000
