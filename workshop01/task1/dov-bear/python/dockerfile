@@ -1,0 +1,10 @@
+FROM python:3.9.19-slim
+
+COPY . .
+
+RUN pip install -r requirements.txt
+
+ENV PORT 3000
+ENV INSTANCE_NAME "CFDSA Workshop"
+ENV INSTANCE_HASH "Task 1 Dov Bear"
+ENTRYPOINT ["python","main.py"]
