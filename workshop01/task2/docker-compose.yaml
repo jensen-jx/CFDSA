@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  myapp:
+    image: stackupiss/northwind-app:v1
+    environment:
+      - DB_HOST=mydb
+      - DB_USER=root
+      - DB_PASSWORD=changeit
+    ports:
+      - 8080:3000
+    networks:
+      - mynet
+  mydb:
+    image: stackupiss/northwind-db:v1
+    volumes:
+      - CFDSA_workshop01_task2_vol:/var/lib/mysql
+    networks:
+      - mynet
+
+networks:
+  mynet:
+
+volumes:
+  CFDSA_workshop01_task2_vol:
