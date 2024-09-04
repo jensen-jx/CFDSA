@@ -1,0 +1,131 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codeserver-deploy
+  namespace: codeserver
+  labels:
+    app: codeserver-deploy
+    name: codeserver-deploy
+
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector: 
+    matchLabels:
+      app: codeserver-po
+  template:
+    metadata: 
+      name: codeserver-po
+      namespace: codeserver
+      labels:
+        version: v1
+        app: codeserver-po
+    spec:
+      containers:
+        - name: codeserver-po
+          image: lscr.io/linuxserver/code-server:latest
+          ports:
+            - name: app-port
+              containerPort: 8443          
+          env:
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  name: codeserver-configmap
+                  key: TZ
+
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: codeserver-secrets
+                  key: PASSWORD
+
+            - name: SUDO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: codeserver-secrets
+                  key: SUDO_PASSWORD  
+                            
+            - name: DEFAULT_WORKSPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: codeserver-configmap
+                  key: DEFAULT_WORKSPACE  
+
+            - name: PROXY_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: codeserver-configmap
+                  key: PROXY_DOMAIN
+          volumeMounts:
+            - mountPath: /config/workspace 
+              name: workspace-vol
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256M
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: workspace-vol
+          persistentVolumeClaim:
+            claimName: codeserver-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: codeserver
+  name: codeserver-pvc
+spec:
+  accessModes:
+  -   ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: do-block-storage-retain          
+           
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: codeserver-svc
+  namespace: codeserver
+  labels:
+    app: codeserver-po
+spec:
+  type: ClusterIP
+  selector:
+    app: codeserver-po
+  ports:
+    - port: 3000
+      targetPort: app-port
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: codeserver-ing
+  namespace: codeserver
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: code-146.190.194.33.nip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: codeserver-svc
+            port:
+              number: 3000
