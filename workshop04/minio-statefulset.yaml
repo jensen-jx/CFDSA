@@ -1,0 +1,203 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio-sts
+  namespace: minions
+  labels:
+    app: minio-sts
+    name: minio-sts
+
+spec:
+  replicas: 4
+  serviceName: minio-headless-svc
+  selector: 
+    matchLabels:
+      app: minio-po
+  volumeClaimTemplates:
+    - metadata:
+        name: data-vol
+        namespace: minions
+      spec:
+        accessModes: 
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+        storageClassName: do-block-storage-retain 
+  template:
+    metadata: 
+      name: minio-po
+      namespace: minions
+      labels:
+        version: v1
+        app: minio-po
+    spec:
+      securityContext:
+          runAsUser: 1001
+          fsGroup: 1001
+      containers:
+        - name: minio-po
+          image: bitnami/minio:latest
+          ports:
+            - name: app-port
+              containerPort: 9000     
+            - name: console-port
+              containerPort: 9090     
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: minio-configmap
+                  key: MINIO_ROOT_USER    
+                        
+            - name: BITNAMI_DEBUG
+              value: "true"
+
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secrets
+                  key: MINIO_ROOT_PASSWORD  
+
+            - name: MINIO_DATA_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: minio-configmap
+                  key: MINIO_DATA_DIR  
+                            
+            - name: MINIO_DISTRIBUTED_MODE_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: minio-configmap
+                  key: MINIO_DISTRIBUTED_MODE_ENABLED  
+
+            - name: MINIO_DISTRIBUTED_NODES
+              valueFrom:
+                configMapKeyRef:
+                  name: minio-configmap
+                  key: MINIO_DISTRIBUTED_NODES
+
+            - name: MINIO_API_PORT_NUMBER
+              valueFrom:
+                configMapKeyRef:
+                  name: minio-configmap
+                  key: MINIO_API_PORT_NUMBER
+
+            - name: MINIO_CONSOLE_PORT_NUMBER
+              valueFrom:
+                configMapKeyRef:
+                  name: minio-configmap
+                  key: MINIO_CONSOLE_PORT_NUMBER
+
+          volumeMounts:
+            - mountPath: /data
+              name: data-vol
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: app-port
+            timeoutSeconds: 100
+            failureThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: app-port
+            timeoutSeconds: 100
+            failureThreshold: 3
+            successThreshold: 1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-headless-svc
+  namespace: minions
+  labels:
+    app: minio-po
+spec:
+  clusterIP: None
+  selector:
+    app: minio-po
+  ports:
+    - port: 9000
+      name: app-port
+      targetPort: app-port
+    - port: 9090
+      name: console-port
+      targetPort: console-port
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-svc
+  namespace: minions
+  labels:
+    app: minio-po
+spec:
+  selector:
+    app: minio-po
+  ports:
+    - port: 9000
+      name: app-port
+      targetPort: app-port
+    - port: 9090
+      name: console-port
+      targetPort: console-port
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-ing
+  namespace: minions
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/limit-rps: "5"
+    nginx.ingress.kubernetes.io/limit-rpm: "300"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: data-146.190.194.33.nip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-svc
+            port:
+              number: 9000
+  - host: console-146.190.194.33.nip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-svc
+            port:
+              number: 9090
+
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  namespace: minions
+  name: minio-vpa
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: minio-sts
+  updatePolicy:
+    updateMode: "Off"
