@@ -1,4 +1,3 @@
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -11,6 +10,12 @@ metadata:
 
 spec:
   replicas: 3
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector: 
     matchLabels:
       app: bggapp-po
@@ -24,7 +29,7 @@ spec:
     spec:
       containers:
         - name: bggapp-po
-          image: stackupiss/bgg-backend:v1
+          image: stackupiss/bgg-backend:v2
           ports:
             - name: app-port
               containerPort: 3000
@@ -70,9 +75,32 @@ metadata:
   labels:
     app: bggapp-po
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: bggapp-po
   ports:
-    - port: 80
+    - port: 3000
       targetPort: app-port
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bggapp-ing
+  namespace: bggns
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: dov.146.190.194.33.nip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: bggapp-svc
+            port:
+              number: 3000
